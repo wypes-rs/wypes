@@ -1,14 +1,21 @@
 {
   "name": "@wypes/lib",
-  "version": "0.0.0",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wypes-rs/wypes.git"
+  },
   "license": "Apache 2.0",
   "engines": {
     "node": ">= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0"
   },
   "type": "commonjs",
-  "main": "index.js",
-  "types": "index.d.ts",
-  "browser": "browser.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "browser": "dist/browser.js",
+  "files": [
+    "dist"
+  ],
   "napi": {
     "binaryName": "lib",
     "targets": [
@@ -17,25 +24,36 @@
       "x86_64-pc-windows-msvc",
       "x86_64-unknown-linux-gnu",
       "x86_64-unknown-linux-musl",
-      "x86_64-unknown-freebsd",
       "universal-apple-darwin",
       "wasm32-wasi-preview1-threads"
     ]
   },
   "scripts": {
-    "test": "ava",
-    "build": "napi build --release --platform --strip",
+    "test": "node --version && ava",
+    "build": "napi build --release --platform --strip --output-dir dist",
     "build:debug": "napi build",
-    "prepublishOnly": "napi prepublish -t npm",
-    "artifacts": "napi artifacts",
-    "version": "napi version"
+    "prepublishOnly": "napi prepublish -t npm --gh-release",
+    "artifacts": "napi artifacts --build-output-dir ./artifacts/ --output-dir ./artifacts/",
+    "version": "napi version",
+    "universalize": "napi universalize --output-dir dist"
   },
   "devDependencies": {
-    "@napi-rs/cli": "^3.0.0-alpha.38",
+    "@napi-rs/cli": "patch:@napi-rs/cli@npm:3.0.0-alpha.38#~/.yarn/patches/@napi-rs-cli-npm-3.0.0-alpha.38-93961b489d.patch",
     "@napi-rs/wasm-runtime": "^0.1.1",
-    "ava": "^6.1.1"
+    "ava": "^6.1.1",
+    "ts-node": "^10.9.2"
   },
   "ava": {
-    "timeout": "1m"
+    "timeout": "1m",
+    "extensions": [
+      "ts"
+    ],
+    "require": [
+      "ts-node/register"
+    ]
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/",
+    "access": "public"
   }
 }

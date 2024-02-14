@@ -7,9 +7,14 @@
   ],
   "scripts": {
     "build": "turbo run build",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "universalize": "yarn workspace @wypes/lib universalize",
+    "artifacts": "yarn workspace @wypes/lib artifacts"
   },
   "devDependencies": {
-    "turbo": "^1.12.3"
+    "@napi-rs/cli": "patch:@napi-rs/cli@npm:3.0.0-alpha.38#~/.yarn/patches/@napi-rs-cli-npm-3.0.0-alpha.38-93961b489d.patch",
+    "@tsconfig/node20": "^20.1.2",
+    "turbo": "^1.12.3",
+    "typescript": "^5.3.3"
   }
 }

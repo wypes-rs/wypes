@@ -41,7 +41,17 @@ jobs:
             build: yarn build -- --platform --target aarch64-apple-darwin
           - host: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            build: yarn build -- --platform --target aarch64-unknown-linux-gnu --use-napi-cross
+            docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:lts-debian-aarch64
+            build: |-
+              set -e &&
+              corepack enable &&
+              sudo apt-get update &&
+              sudo apt-get install perl -y &&
+              export LDFLAGS="-L/usr/aarch64-unknown-linux-gnu/lib/gcc/aarch64-unknown-linux-gnu/4.8.5" &&
+              export CFLAGS="-fuse-ld=lld -mcrc -B/usr/aarch64-unknown-linux-gnu/lib/gcc/aarch64-unknown-linux-gnu/4.8.5 --sysroot=/usr/aarch64-unknown-linux-gnu/aarch64-unknown-linux-gnu/sysroot" &&
+              export CXXFLAGS="-fuse-ld=lld -mcrc -B/usr/aarch64-unknown-linux-gnu/lib/gcc/aarch64-unknown-linux-gnu/4.8.5 --sysroot=/usr/aarch64-unknown-linux-gnu/aarch64-unknown-linux-gnu/sysroot" &&
+              yarn build -- --target aarch64-unknown-linux-gnu
+            # build: yarn build -- --platform --target aarch64-unknown-linux-gnu --use-napi-cross
           - host: ubuntu-latest
             target: aarch64-unknown-linux-musl
             build: yarn build -- --platform --target aarch64-unknown-linux-musl -x
@@ -98,70 +108,27 @@ jobs:
       - name: Build
         run: ${{ matrix.settings.build }}
         shell: bash
+        if: ${{ !matrix.settings.docker }}
+      - name: Build in docker
+        uses: addnab/docker-run-action@v3
+        if: ${{ matrix.settings.docker }}
+        with:
+          image: ${{ matrix.settings.docker }}
+          options: '--user 0:0 -v ${{ github.workspace }}/.cargo-cache/git/db:/usr/local/cargo/git/db -v ${{ github.workspace }}/.cargo/registry/cache:/usr/local/cargo/registry/cache -v ${{ github.workspace }}/.cargo/registry/index:/usr/local/cargo/registry/index -v ${{ github.workspace }}:/build -w /build'
+          run: ${{ matrix.settings.build }}
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         if: matrix.settings.target != 'wasm32-wasi-preview1-threads'
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: '**/*.node'
+          path: './crates/lib/dist/*'
           if-no-files-found: error
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         if: matrix.settings.target == 'wasm32-wasi-preview1-threads'
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: '**/*.wasm'
-          if-no-files-found: error
-  build-freebsd:
-    runs-on: macos-12
-    name: Build FreeBSD
-    steps:
-      - uses: actions/checkout@v4
-      - name: Enable Corepack
-        run: corepack enable
-      - name: Build
-        id: build
-        uses: cross-platform-actions/action@v0.21.1
-        timeout-minutes: 30
-        env:
-          DEBUG: napi:*
-          RUSTUP_IO_THREADS: 1
-        with:
-          operating_system: freebsd
-          version: '13.2'
-          memory: 8G
-          cpu_count: 3
-          environment_variables: DEBUG RUSTUP_IO_THREADS
-          shell: bash
-          run: |
-            sudo pkg install -y -f curl node libnghttp2 npm
-            sudo npm install -g yarn --ignore-scripts
-            curl https://sh.rustup.rs -sSf --output rustup.sh
-            sh rustup.sh -y --profile minimal --default-toolchain stable
-            source "$HOME/.cargo/env"
-            echo "~~~~ rustc --version ~~~~"
-            rustc --version
-            echo "~~~~ node -v ~~~~"
-            node -v
-            echo "~~~~ yarn --version ~~~~"
-            yarn --version
-            pwd
-            ls -lah
-            whoami
-            env
-            freebsd-version
-            yarn install
-            yarn build
-            strip -x *.node
-            yarn test
-            rm -rf node_modules
-            rm -rf target
-            rm -rf .yarn/cache
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: bindings-freebsd
-          path: '**/*.node'
+          path: './crates/lib/dist/*'
           if-no-files-found: error
   test-macOS-windows-binding:
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
@@ -194,7 +161,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bindings-${{ matrix.settings.target }}
-          path: .
+          path: ./crates/lib/dist/
       - name: List packages
         run: ls -R .
         shell: bash
@@ -226,7 +193,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bindings-x86_64-unknown-linux-gnu
-          path: .
+          path: ./crates/lib/dist/
       - name: List packages
         run: ls -R .
         shell: bash
@@ -260,7 +227,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bindings-x86_64-unknown-linux-musl
-          path: .
+          path: ./crates/lib/dist/
       - name: List packages
         run: ls -R .
         shell: bash
@@ -284,7 +251,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bindings-aarch64-unknown-linux-gnu
-          path: .
+          path: ./crates/lib/dist/
       - name: List packages
         run: ls -R .
         shell: bash
@@ -323,7 +290,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bindings-aarch64-unknown-linux-musl
-          path: .
+          path: ./crates/lib/dist/
       - name: List packages
         run: ls -R .
         shell: bash
@@ -359,23 +326,21 @@ jobs:
           cache: yarn
       - name: Install dependencies
         run: yarn install
-      - name: Download macOS x64 artifact
+      - name: Download macOS x64/arm64 artifact
         uses: actions/download-artifact@v4
         with:
-          name: bindings-x86_64-apple-darwin
-          path: .
-      - name: Download macOS arm64 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: bindings-aarch64-apple-darwin
-          path: .
+          pattern: bindings-*-apple-darwin
+          path: ./crates/lib/dist/
+          merge-multiple: true
+      - name: List packages
+        run: ls -R ./crates/lib/dist/
       - name: Combine binaries
-        run: yarn napi universalize
+        run: yarn universalize
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: bindings-universal-apple-darwin
-          path: '**/*.node'
+          path: './crates/lib/dist/*'
           if-no-files-found: error
   test-wasi-nodejs:
     name: Test bindings on wasi - node@${{ matrix.node }}
@@ -396,7 +361,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: bindings-wasm32-wasi-preview1-threads
-          path: .
+          path: ./crates/lib/dist/
       - name: List packages
         run: ls -R .
       - uses: actions/setup-node@v4
@@ -413,7 +378,6 @@ jobs:
     name: Publish
     runs-on: ubuntu-latest
     needs:
-      - build-freebsd
       - test-macOS-windows-binding
       - test-linux-x64-gnu-binding
       - test-linux-x64-musl-binding
@@ -436,20 +400,27 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          path: ./crates/lib/artifacts
+          merge-multiple: true
+      - name: List artifacts
+        run: ls -R ./crates/lib/artifacts
+        shell: bash
       - name: Move artifacts
-        run: yarn artifacts
-      - name: List packages
-        run: ls -R ./npm
+        run: >
+          yarn artifacts
+          && mkdir -p ./crates/lib/dist
+          && cp ./crates/lib/artifacts/{index.js,index.d.ts,browser.js} ./crates/lib/dist
+      - name: List everything
+        run: ls -R .
         shell: bash
       - name: Publish
         run: |
           if git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+$";
           then
-            npm publish --access public --provenance
+            npm publish --access public --provenance --workspaces
           elif git log -1 --pretty=%B | grep "^[0-9]\+\.[0-9]\+\.[0-9]\+";
           then
-            npm publish --tag next --access public --provenance
+            npm publish --tag next --access public --provenance --workspaces
           else
             echo "Not a release, skipping publish"
           fi
