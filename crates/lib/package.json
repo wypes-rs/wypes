@@ -1,0 +1,41 @@
+{
+  "name": "@wypes/lib",
+  "version": "0.0.0",
+  "license": "Apache 2.0",
+  "engines": {
+    "node": ">= 12.22.0 < 13 || >= 14.17.0 < 15 || >= 15.12.0 < 16 || >= 16.0.0"
+  },
+  "type": "commonjs",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "browser": "browser.js",
+  "napi": {
+    "binaryName": "lib",
+    "targets": [
+      "aarch64-unknown-linux-gnu",
+      "aarch64-unknown-linux-musl",
+      "x86_64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "x86_64-unknown-freebsd",
+      "universal-apple-darwin",
+      "wasm32-wasi-preview1-threads"
+    ]
+  },
+  "scripts": {
+    "test": "ava",
+    "build": "napi build --release --platform --strip",
+    "build:debug": "napi build",
+    "prepublishOnly": "napi prepublish -t npm",
+    "artifacts": "napi artifacts",
+    "version": "napi version"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.0.0-alpha.38",
+    "@napi-rs/wasm-runtime": "^0.1.1",
+    "ava": "^6.1.1"
+  },
+  "ava": {
+    "timeout": "1m"
+  }
+}

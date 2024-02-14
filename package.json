@@ -1,0 +1,15 @@
+{
+  "name": "@wypes/root",
+  "packageManager": "yarn@4.1.0",
+  "private": true,
+  "workspaces": [
+    "crates/*"
+  ],
+  "scripts": {
+    "build": "turbo run build",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "turbo": "^1.12.3"
+  }
+}
